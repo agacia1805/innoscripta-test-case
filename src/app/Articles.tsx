@@ -123,6 +123,51 @@ const { data: guardianApiData, isLoading: isLoadingGuardian } = useQuery({queryK
 const { data: nytApiData, isLoading: isLoadingNytApi } = useQuery({queryKey: ['nytApiArticles'],
     queryFn: () => fetchArticlesFromApi(nytApiKey, 'https://api.nytimes.com/svc/mostpopular/v2/viewed/1.json?api-key=')});
 
+const normalizeArticles = (newsApiData, guardianApiData, nytApiData) => {
+  const normalizedNewsApiData = newsApiData?.map(article => ({
+    author: article.author,
+    content: article.description,
+    date: article.publishedAt,
+    source: article.source.name,
+    title: article.title,
+    url: article.url
+  })) || [];
+
+  const normalizedGuardianData = guardianApiData?.map(article => ({
+    author: article.tags?.map(tag => tag.webTitle).join(', '),
+    category: article.pillarName,
+    date: article.webPublicationDate,
+    title: article.webTitle,
+    source: 'The Guardian',
+    url: article.webUrl,
+  })) || [];
+
+  const normalizedNytData = nytApiData?.map(article => ({
+    author: article.byline.substring(3),
+    category: article.section,
+    content: article.abstract,
+    date: article.published_date,
+    keywords: article.adx_keywords,
+    title: article.title,
+    source: article.source,
+    url: article.url
+  })) || [];
+
+  return [...normalizedNewsApiData, ...normalizedGuardianData, ...normalizedNytData];
+};
+
+const allDataFetched = !isLoadingNewsApi && !isLoadingGuardian && !isLoadingNytApi && newsApiData && guardianApiData && nytApiData;
+
+const normalizedArticles = useMemo(() => {
+    if (allDataFetched) {
+      return normalizeArticles(newsApiData.articles, guardianApiData.response.results, nytApiData.results);
+    }
+    return [];
+  }, [allDataFetched, newsApiData, guardianApiData, nytApiData]);
+
+  console.log(normalizedArticles)
+
+
   return (
     <div>Test</div>
       );
