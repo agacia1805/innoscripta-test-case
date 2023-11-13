@@ -16,11 +16,14 @@ const queryClient = new QueryClient();
 
   return (
     <html lang="en">
+        <head>
+          <title>Innoscripta test case</title>
+        </head>
       <body className={inter.className}>
         <QueryClientProvider client={queryClient}>
             {children}
             <ReactQueryDevtools/>
-        </QueryClientProvider>
+        </QueryClientProvider >
       </body>
     </html>
   )
