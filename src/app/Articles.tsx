@@ -1,18 +1,14 @@
 'use client';
 
 import * as React from "react";
-import {useMemo, Fragment, useState} from 'react';
+import {useMemo, Fragment, useEffect, useState} from 'react';
 import { useQuery } from "@tanstack/react-query";
-import { Dialog, Disclosure, Transition } from '@headlessui/react'
+import { Dialog, Disclosure, Transition, Switch } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { ChevronDownIcon, PlusIcon } from '@heroicons/react/20/solid'
 import {ArticleItem} from './ArticleItem';
 
 export const Articles = () => {
-const newsApiKey = '66e91b5815f04ed792631df8cdfc0822';
-const guardianApiKey = '84411a34-7972-4451-b787-dca38e5ea6dc';
-const nytApiKey = '5WttEG3a28sAs6NX0i5X23WK3ZXAQ4Rj';
-
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
 }
@@ -25,11 +21,11 @@ const fetchArticlesFromApi = async (apiKey, endpoint) => {
  };
 
 const { data: newsApiData, isLoading: isLoadingNewsApi } = useQuery({queryKey: ['newsApiArticles'],
-    queryFn: () => fetchArticlesFromApi(newsApiKey, 'https://newsapi.org/v2/everything?q=bitcoin&apiKey=')});
+    queryFn: () => fetchArticlesFromApi(process.env.NEXT_PUBLIC_NEWS_API_KEY, 'https://newsapi.org/v2/everything?q=general&apiKey=')});
 const { data: guardianApiData, isLoading: isLoadingGuardian } = useQuery({queryKey: ['guardianApiArticles'],
-    queryFn: () => fetchArticlesFromApi(guardianApiKey, 'https://content.guardianapis.com/search?&show-tags=contributor&api-key=')});
+    queryFn: () => fetchArticlesFromApi(process.env.NEXT_PUBLIC_GUARDIAN_API_KEY, 'https://content.guardianapis.com/search?&show-tags=contributor&api-key=')});
 const { data: nytApiData, isLoading: isLoadingNytApi } = useQuery({queryKey: ['nytApiArticles'],
-    queryFn: () => fetchArticlesFromApi(nytApiKey, 'https://api.nytimes.com/svc/mostpopular/v2/viewed/1.json?api-key=')});
+    queryFn: () => fetchArticlesFromApi(process.env.NEXT_PUBLIC_NYT_API_KEY, 'https://api.nytimes.com/svc/mostpopular/v2/viewed/1.json?api-key=')});
 
 const normalizeArticles = (newsApiData, guardianApiData, nytApiData) => {
   const normalizedNewsApiData = newsApiData?.map(article => ({
@@ -117,6 +113,7 @@ const filters = useMemo(() => {
 
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [savePreferences, setSavePreferences] = useState(false);
 
   const handleFilterChange = (filterType, value) => {
     setSelectedFilters(prevFilters => {
@@ -175,7 +172,41 @@ const filteredArticles = useMemo(() => {
   });
 }, [normalizedArticles, selectedFilters, searchKeyword, dateRange]);
 
+// Load preferences on mount
+useEffect(() => {
+  const savedFilters = JSON.parse(localStorage.getItem('userPreferences'));
+  if (savedFilters) {
+    setSelectedFilters(savedFilters);
+    setSavePreferences(true);
+  }
+}, []);
 
+// Save or clear preferences when the toggle changes
+useEffect(() => {
+  if (savePreferences) {
+    localStorage.setItem('userPreferences', JSON.stringify(selectedFilters));
+  } else {
+    localStorage.removeItem('userPreferences');
+  }
+}, [savePreferences, selectedFilters]);
+
+const handleToggleChange = (newValue) => {
+  setSavePreferences(newValue);
+  if (!newValue) {
+    // Clear local storage
+    localStorage.removeItem('userPreferences');
+    // Reset filters
+    setSelectedFilters({
+      author: [],
+      category: [],
+      source: [],
+      date: []
+    });
+  } else {
+    // Save current filters to local storage
+    localStorage.setItem('userPreferences', JSON.stringify(selectedFilters));
+  }
+};
 
   return (
     <div className="bg-gray-100">
@@ -276,6 +307,7 @@ const filteredArticles = useMemo(() => {
                                         />
                                         <label
                                           htmlFor={`${section.id}-${optionIdx}-mobile`}
+                                          for={`${section.id}-${optionIdx}-mobile`}
                                           className="ml-3 text-sm text-gray-500"
                                         >
                                           {option.label}
@@ -290,6 +322,26 @@ const filteredArticles = useMemo(() => {
                           </Disclosure>
                         ))}
                       </form>
+                    <div className="flex justify-between p-4 w-56 sm:flex lg:hidden md:hidden">
+                                                         <label htmlFor="save-preferences-toggle" className="text-sm font-medium text-gray-700">
+                                                           {savePreferences ? "Remove preferences" : "Save preferences"}
+                                                         </label>
+                                                         <Switch
+                                                           id="save-preferences-toggle"
+                                                           checked={savePreferences}
+                                                           onChange={handleToggleChange}
+                                                           className={`${
+                                                             savePreferences ? 'bg-indigo-600' : 'bg-gray-200'
+                                                           } relative inline-flex items-center h-6 rounded-full w-11`}
+                                                         >
+                                                           <span
+                                                             className={`${
+                                                               savePreferences ? 'translate-x-6' : 'translate-x-1'
+                                                             } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                                                           />
+                                                           <span className="sr-only">Save preferences/Remove preferences</span>
+                                                         </Switch>
+                                                       </div>
                     </Dialog.Panel>
                   </Transition.Child>
                 </div>
@@ -359,7 +411,7 @@ const filteredArticles = useMemo(() => {
                               {section.options.map((option, optionIdx) => (
                                 <div key={option.value} className="flex items-center">
                                   <input
-                                   id={`${section.id}-${optionIdx}-mobile`}
+                                   id={`${section.id}-${optionIdx}`}
                                    name={`${section.id}[]`}
                                    defaultValue={option.value}
                                    key={option.id}
@@ -368,7 +420,7 @@ const filteredArticles = useMemo(() => {
                                    type="checkbox"
                                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                   />
-                                  <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-700">
+                                  <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-700" for={`${section.id}-${optionIdx}`}>
                                     {option.label}
                                   </label>
                                 </div>
@@ -382,6 +434,26 @@ const filteredArticles = useMemo(() => {
                   </div>
                 </aside>
                 <div className="mt-6 lg:col-span-2 lg:mt-0 xl:col-span-3 lg:pt-20">
+                <div className="flex justify-between pb-4 w-52 hidden ml-auto lg:flex">
+                                        <label htmlFor="save-preferences-toggle" className="text-sm font-medium text-gray-700">
+                                          {savePreferences ? "Remove preferences" : "Save preferences"}
+                                        </label>
+                                        <Switch
+                                          id="save-preferences-toggle"
+                                          checked={savePreferences}
+                                          onChange={handleToggleChange}
+                                          className={`${
+                                            savePreferences ? 'bg-indigo-600' : 'bg-gray-200'
+                                          } relative inline-flex items-center h-6 rounded-full w-11`}
+                                        >
+                                          <span
+                                            className={`${
+                                              savePreferences ? 'translate-x-6' : 'translate-x-1'
+                                            } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                                          />
+                                          <span className="sr-only">Save preferences/Remove preferences</span>
+                                        </Switch>
+                                      </div>
                 <ul role="list" className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-2">
                 {filteredArticles.map((article) => {
                 return <ArticleItem url={article.url} title={article.title} author={article.author} content={article.content}/>
