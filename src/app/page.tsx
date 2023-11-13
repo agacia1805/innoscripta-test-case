@@ -5,9 +5,9 @@ import {Articles} from './Articles';
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col justify-between">
-    <Header />
-    <Articles />
-    <Footer />
+     <Header />
+     <Articles />
+     <Footer />
     </main>
   )
 }

@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, Disclosure, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { ChevronDownIcon, PlusIcon } from '@heroicons/react/20/solid'
+import {ArticleItem} from './ArticleItem';
 
 export const Articles = () => {
 const newsApiKey = '66e91b5815f04ed792631df8cdfc0822';
@@ -177,7 +178,7 @@ const filteredArticles = useMemo(() => {
 
 
   return (
-    <div className="bg-white">
+    <div className="bg-gray-100">
           <div>
             <Transition.Root show={mobileFiltersOpen} as={Fragment}>
               <Dialog as="div" className="relative z-40 lg:hidden" onClose={setMobileFiltersOpen}>
@@ -224,7 +225,7 @@ const filteredArticles = useMemo(() => {
                               <fieldset>
                                 <legend className="w-full px-2">
                                   <Disclosure.Button className="flex w-full items-center justify-between p-2 text-gray-400 hover:text-gray-500">
-                                    <span className="text-sm font-medium text-gray-900">{section.name}</span>
+                                    <span className="text-sm font-medium text-gray-900 ">{section.name}</span>
                                     <span className="ml-6 flex h-7 items-center">
                                       <ChevronDownIcon
                                         className={classNames(open ? '-rotate-180' : 'rotate-0', 'h-5 w-5 transform')}
@@ -300,7 +301,7 @@ const filteredArticles = useMemo(() => {
                 <aside className="flex flex-col gap-3">
                   <h2 className="sr-only">Filters</h2>
                     <div>
-                        <label htmlFor="search" className="block text-sm font-medium leading-6 text-gray-900">
+                        <label htmlFor="search" className="block text-m font-semibold leading-6 text-gray-900">
                            Quick search
                         </label>
                         <div className="relative mt-2 flex items-center">
@@ -309,8 +310,7 @@ const filteredArticles = useMemo(() => {
                               name="search"
                               id="search"
                               onChange={e => setSearchKeyword(e.target.value)}
-                              className="block w-full rounded-md border-0 py-1.5 pr-14 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
+                                className="block w-full rounded-md border-0 py-1.5 px-4 pr-14 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"                            />
                         </div>
                     </div>
                   <button
@@ -327,9 +327,8 @@ const filteredArticles = useMemo(() => {
                       {filters.map((section, sectionIdx) => (
                         <div key={section.name} className={sectionIdx === 0 ? null : 'pt-6'}>
                           <fieldset>
-                            <legend className="block text-sm font-medium text-gray-900 pb-2">{section.name}</legend>
                             {section.id === 'date' ?
-                                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="flex flex-col gap-4 mb-4">
                                      <div className="flex flex-col">
                                       <label htmlFor="start-date" className="block mb-2 text-sm font-medium text-gray-700">Start Date</label>
                                       <input
@@ -352,7 +351,11 @@ const filteredArticles = useMemo(() => {
                                 </div>
                                </div>
                             :
-                            <div className="space-y-3 pt-4 max-h-60 overflow-y-auto">
+                            <div className="space-y-3 max-h-60 overflow-y-auto relative p-0">
+                            <div className='sticky top-0 pointer-events-none -mb-1'>
+                             <legend className="block text-m font-semibold text-gray-900 bg-gray-100">{section.name}</legend>
+                              <div className='h-4 bg-gradient-to-b from-gray-100'/>
+                             </div>
                               {section.options.map((option, optionIdx) => (
                                 <div key={option.value} className="flex items-center">
                                   <input
@@ -365,7 +368,7 @@ const filteredArticles = useMemo(() => {
                                    type="checkbox"
                                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                   />
-                                  <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-600">
+                                  <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-700">
                                     {option.label}
                                   </label>
                                 </div>
@@ -378,14 +381,13 @@ const filteredArticles = useMemo(() => {
                     </form>
                   </div>
                 </aside>
-                <div className="mt-6 lg:col-span-2 lg:mt-0 xl:col-span-3">
+                <div className="mt-6 lg:col-span-2 lg:mt-0 xl:col-span-3 lg:pt-20">
+                <ul role="list" className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-2">
                 {filteredArticles.map((article) => {
-                return <div key={article.url}>
-                        <a href={article.url} className="text-gray-600 text-lg">{article.title}</a>
-                        <p className="text-gray-600">{article.content}</p>
-                        <p className="text-gray-600">{article.author}</p>
-                       </div>
-                })}</div>
+                return <ArticleItem url={article.url} title={article.title} author={article.author} content={article.content}/>
+                })}
+                </ul>
+                </div>
               </div>
             </main>
           </div>
