@@ -1,114 +1,21 @@
 'use client';
 
 import * as React from "react";
-import {useMemo} from 'react';
+import {useMemo, Fragment, useState} from 'react';
 import { useQuery } from "@tanstack/react-query";
-import { Fragment, useState } from 'react'
 import { Dialog, Disclosure, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { ChevronDownIcon, PlusIcon } from '@heroicons/react/20/solid'
-import { useHistory, useLocation } from 'react-router-dom';
-
 
 export const Articles = () => {
 const newsApiKey = '66e91b5815f04ed792631df8cdfc0822';
 const guardianApiKey = '84411a34-7972-4451-b787-dca38e5ea6dc';
 const nytApiKey = '5WttEG3a28sAs6NX0i5X23WK3ZXAQ4Rj';
-const param = '';
-
-const filters = [
-  {
-    id: 'color',
-    name: 'Color',
-    options: [
-      { value: 'purple', label: 'Purple' },
-    ],
-  },
-  {
-    id: 'category',
-    name: 'Category',
-    options: [
-      { value: 'pants-shorts', label: 'Pants & Shorts' },
-    ],
-  },
-  {
-    id: 'sizes',
-    name: 'Sizes',
-    options: [
-      { value: '2xl', label: '2XL' },
-    ],
-  },
-]
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
 }
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
-
-// const filterByAuthorGeneral = (data, author) => {
-//   return [].concat(...data)?.filter(article => {
-//       const articleAuthor = article?.author || article?.byline || (article?.tags?.map(tag => tag.webTitle).join(', '));
-//       return articleAuthor?.includes(author);
-//     });
-// };
-// // console.log(filterByAuthorGeneral([nytApiData, newsApiData, guardianApiData], 'do'));
-//
-// const filterByKeywordGeneral = (data, keyword) => {
-//   return [].concat(...data)?.filter(article => {
-//       const articleKeyword = article?.adx_keywords || article?.webTitle || article?.title;
-//       return articleKeyword?.includes(keyword);
-//     });
-// };
-// // console.log(filterByKeywordGeneral([nytApiData, newsApiData, guardianApiData], 'Israel'));
-//
-// const filterBySourceGeneral = (data, source) => {
-//   return [].concat(...data)?.filter(article => {
-//       const articleSource =  article?.source?.name || article?.source || (article?.webUrl?.includes('theguardian') ? 'The Guardian' : null);
-//       return articleSource?.includes(source);
-//     });
-// };
-//
-// // console.log(filterBySourceGeneral([nytApiData, newsApiData, guardianApiData], 'Gizmo'));
-//
-// const filterByCategoryGeneral = (data, category) => {
-//   return [].concat(...data)?.filter(article => {
-//       const articleCategory = article?.section || article?.pillarName;
-//       return articleCategory?.includes(category);
-//     });
-// };
-//
-// // console.log(filterByCategoryGeneral([nytApiData, newsApiData, guardianApiData], 'Sport'));
-//
-// const filterByDateGeneral = (data, category) => {
-//   return [].concat(...data)?.filter(article => {
-//       const articleCategory = article?.section || article?.pillarName;
-//       return articleCategory?.includes(category);
-//     });
-// };
-
-// const filterDates = (dataArray, thresholdDate) => {
-//   const thresholdDateObj = new Date(thresholdDate);
-//   const filteredArrays = dataArray.map(data => {
-//     return data.filter(article => {
-//       const dateField = Object.keys(article).find(fieldName => {
-//         const dateString = article[fieldName];
-//         return dateString && new Date(dateString).toString() !== 'Invalid Date';
-//       });
-//
-//       if (!dateField) {
-//         return false;
-//       }
-//
-//       const articleDate = new Date(article[dateField]);
-//
-//       return !isNaN(articleDate) && articleDate > thresholdDateObj;
-//     });
-//   });
-//
-//   return [].concat(...filteredArrays);
-// };
-//
-// console.log(filterDates([nytApiData, newsApiData, guardianApiData], '2023-10'));
+const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
 const fetchArticlesFromApi = async (apiKey, endpoint) => {
         const response = await fetch(`${endpoint}${apiKey}`);
@@ -165,13 +72,113 @@ const normalizedArticles = useMemo(() => {
     return [];
   }, [allDataFetched, newsApiData, guardianApiData, nytApiData]);
 
-  console.log(normalizedArticles)
+const filters = useMemo(() => {
+    const authorsSet = new Set();
+    const categoriesSet = new Set();
+    const sourcesSet = new Set();
+
+    normalizedArticles.forEach(article => {
+      if (article.author) authorsSet.add(article.author);
+      if (article.category) categoriesSet.add(article.category);
+      if (article.source) sourcesSet.add(article.source);
+    });
+
+    return [
+      {
+        id: 'author',
+        name: 'Author',
+        options: Array.from(authorsSet).map(author => ({ value: author, label: author })),
+      },
+      {
+        id: 'category',
+        name: 'Category',
+        options: Array.from(categoriesSet).map(category => ({ value: category, label: category })),
+      },
+      {
+        id: 'source',
+        name: 'Source',
+        options: Array.from(sourcesSet).map(source => ({ value: source, label: source })),
+      },
+      {
+        id: 'date',
+        name: 'Date',
+      },
+    ];
+  }, [normalizedArticles]);
+
+
+   const [selectedFilters, setSelectedFilters] = useState({
+    author: [],
+    category: [],
+    source: [],
+    date: []
+   });
+
+  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
+  const [searchKeyword, setSearchKeyword] = useState('');
+
+  const handleFilterChange = (filterType, value) => {
+    setSelectedFilters(prevFilters => {
+      // Check if the filter for this type already includes this value
+      const isValueSelected = prevFilters[filterType].includes(value);
+      const newFilterValues = isValueSelected
+        ? prevFilters[filterType].filter(v => v !== value) // If it's selected, remove it
+        : [...prevFilters[filterType], value]; // If it's not selected, add it
+
+      return {
+        ...prevFilters,
+        [filterType]: newFilterValues
+      };
+    });
+  };
+
+const filteredArticles = useMemo(() => {
+  return normalizedArticles.filter(article => {
+    // Filter by author
+    if (selectedFilters.author.length > 0 && !selectedFilters.author.includes(article.author)) {
+      return false;
+    }
+    // Filter by category
+    if (selectedFilters.category.length > 0 && !selectedFilters.category.includes(article.category)) {
+      return false;
+    }
+    // Filter by source
+    if (selectedFilters.source.length > 0 && !selectedFilters.source.includes(article.source)) {
+      return false;
+    }
+    // Filter by keyword
+    if (searchKeyword) {
+      const keywordLower = searchKeyword.toLowerCase();
+      const titleMatch = article.title.toLowerCase().includes(keywordLower);
+      const keywordFieldMatch = article.keywords && article.keywords.toLowerCase().includes(keywordLower);
+      if (!titleMatch && !keywordFieldMatch) {
+        return false;
+      }
+    }
+    // Filter by date range
+    const startDate = dateRange.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+    const articleDate = new Date(article.date);
+    // If articleDate is invalid, filter out the article
+    if (isNaN(articleDate)) return false;
+    // If startDate is set and articleDate is before startDate, filter out the article
+    if (startDate && articleDate < startDate) {
+      return false;
+    }
+    // If endDate is set and articleDate is after endDate, filter out the article
+    if (endDate && articleDate > endDate) {
+      return false;
+    }
+    // If the article passes all filters, include it
+    return true;
+  });
+}, [normalizedArticles, selectedFilters, searchKeyword, dateRange]);
+
 
 
   return (
     <div className="bg-white">
           <div>
-            {/* Mobile filter dialog */}
             <Transition.Root show={mobileFiltersOpen} as={Fragment}>
               <Dialog as="div" className="relative z-40 lg:hidden" onClose={setMobileFiltersOpen}>
                 <Transition.Child
@@ -227,13 +234,42 @@ const normalizedArticles = useMemo(() => {
                                   </Disclosure.Button>
                                 </legend>
                                 <Disclosure.Panel className="px-4 pb-2 pt-4">
-                                  <div className="space-y-6">
+                                 {section.id === 'date' ?
+                                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                     <div className="flex flex-col">
+                                    <label htmlFor="start-date" className="block mb-2 text-sm font-medium text-gray-700">Start Date</label>
+                                    <input
+                                        type="date"
+                                        id="start-date"
+                                        name="start-date"
+                                        value={dateRange.startDate}
+                                        onChange={e => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                                        className="cursor-pointer bg-white text-gray-700 border border-gray-300 rounded-md shadow-sm p-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                        />
+                                </div>
+                                <div className="flex flex-col">
+                                    <label htmlFor="end-date" className="block mb-2 text-sm font-medium text-gray-700">End Date</label>
+                                    <input
+                                        type="date"
+                                        id="end-date"
+                                        name="end-date"
+                                        value={dateRange.endDate}
+                                        onChange={e => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                                        className="cursor-pointer bg-white text-gray-700 border border-gray-300 rounded-md shadow-sm p-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                    />
+                                </div>
+                               </div>
+                                 :
+                                  <div className="space-y-3 pt-4 max-h-60 overflow-y-auto">
                                     {section.options.map((option, optionIdx) => (
                                       <div key={option.value} className="flex items-center">
                                         <input
                                           id={`${section.id}-${optionIdx}-mobile`}
                                           name={`${section.id}[]`}
                                           defaultValue={option.value}
+                                          key={option.id}
+                                          checked={selectedFilters[section.id].includes(option.value)}
+                                          onChange={(e) => handleFilterChange(section.id, option.value)}
                                           type="checkbox"
                                           className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                         />
@@ -246,6 +282,7 @@ const normalizedArticles = useMemo(() => {
                                       </div>
                                     ))}
                                   </div>
+                                  }
                                 </Disclosure.Panel>
                               </fieldset>
                             )}
@@ -258,18 +295,24 @@ const normalizedArticles = useMemo(() => {
               </Dialog>
             </Transition.Root>
 
-            <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
-              <div className="border-b border-gray-200 pb-10">
-                <h1 className="text-4xl font-bold tracking-tight text-gray-900">New Arrivals</h1>
-                <p className="mt-4 text-base text-gray-500">
-                  Checkout out the latest release of Basic Tees, new and improved with four openings!
-                </p>
-              </div>
-
-              <div className="pt-12 lg:grid lg:grid-cols-3 lg:gap-x-8 xl:grid-cols-4">
-                <aside>
+            <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-6 lg:max-w-7xl lg:px-8">
+              <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:grid-cols-4">
+                <aside className="flex flex-col gap-3">
                   <h2 className="sr-only">Filters</h2>
-
+                    <div>
+                        <label htmlFor="search" className="block text-sm font-medium leading-6 text-gray-900">
+                           Quick search
+                        </label>
+                        <div className="relative mt-2 flex items-center">
+                            <input
+                              type="text"
+                              name="search"
+                              id="search"
+                              onChange={e => setSearchKeyword(e.target.value)}
+                              className="block w-full rounded-md border-0 py-1.5 pr-14 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                        </div>
+                    </div>
                   <button
                     type="button"
                     className="inline-flex items-center lg:hidden"
@@ -282,17 +325,44 @@ const normalizedArticles = useMemo(() => {
                   <div className="hidden lg:block">
                     <form className="space-y-10 divide-y divide-gray-200">
                       {filters.map((section, sectionIdx) => (
-                        <div key={section.name} className={sectionIdx === 0 ? null : 'pt-10'}>
+                        <div key={section.name} className={sectionIdx === 0 ? null : 'pt-6'}>
                           <fieldset>
-                            <legend className="block text-sm font-medium text-gray-900">{section.name}</legend>
-                            <div className="space-y-3 pt-6">
+                            <legend className="block text-sm font-medium text-gray-900 pb-2">{section.name}</legend>
+                            {section.id === 'date' ?
+                                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                     <div className="flex flex-col">
+                                      <label htmlFor="start-date" className="block mb-2 text-sm font-medium text-gray-700">Start Date</label>
+                                      <input
+                                       type="date"
+                                       id="start-date"
+                                       name="start-date"
+                                       onChange={e => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                                       className="cursor-pointer bg-white text-gray-700 border border-gray-300 rounded-md shadow-sm p-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                       />
+                                </div>
+                                <div className="flex flex-col">
+                                    <label htmlFor="end-date" className="block mb-2 text-sm font-medium text-gray-700">End Date</label>
+                                    <input
+                                       type="date"
+                                       id="end-date"
+                                       name="end-date"
+                                       onChange={e => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                                       className="cursor-pointer bg-white text-gray-700 border border-gray-300 rounded-md shadow-sm p-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                    />
+                                </div>
+                               </div>
+                            :
+                            <div className="space-y-3 pt-4 max-h-60 overflow-y-auto">
                               {section.options.map((option, optionIdx) => (
                                 <div key={option.value} className="flex items-center">
                                   <input
-                                    id={`${section.id}-${optionIdx}`}
-                                    name={`${section.id}[]`}
-                                    defaultValue={option.value}
-                                    type="checkbox"
+                                   id={`${section.id}-${optionIdx}-mobile`}
+                                   name={`${section.id}[]`}
+                                   defaultValue={option.value}
+                                   key={option.id}
+                                   checked={selectedFilters[section.id].includes(option.value)}
+                                   onChange={(e) => handleFilterChange(section.id, option.value)}
+                                   type="checkbox"
                                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                   />
                                   <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-600">
@@ -301,6 +371,7 @@ const normalizedArticles = useMemo(() => {
                                 </div>
                               ))}
                             </div>
+                            }
                           </fieldset>
                         </div>
                       ))}
@@ -308,18 +379,17 @@ const normalizedArticles = useMemo(() => {
                   </div>
                 </aside>
                 <div className="mt-6 lg:col-span-2 lg:mt-0 xl:col-span-3">
-                {normalizedArticles.map((article) => {
-                return <>
-                        <a href={article.url} className="text-gray-600">{article.title}</a>
+                {filteredArticles.map((article) => {
+                return <div key={article.url}>
+                        <a href={article.url} className="text-gray-600 text-lg">{article.title}</a>
                         <p className="text-gray-600">{article.content}</p>
                         <p className="text-gray-600">{article.author}</p>
-                       </>
+                       </div>
                 })}</div>
               </div>
             </main>
           </div>
         </div>
-
       );
 };
 
