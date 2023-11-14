@@ -1,6 +1,13 @@
 import * as React from "react";
 
-export const ArticleItem = ({url, title, content, author}) => {
+type ArticleItem = {
+   author: string;
+   content: string;
+   title: string;
+   url: string;
+};
+
+export const ArticleItem = ({url, title, content, author}: ArticleItem) => {
 
   return (
    <li key={url} className="col-span-1 flex flex-col divide-y divide-gray-200 rounded-lg bg-white shadow">

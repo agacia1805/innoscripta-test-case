@@ -6,68 +6,69 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, Disclosure, Transition, Switch } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { ChevronDownIcon, PlusIcon } from '@heroicons/react/20/solid'
+import { useArticlesApi } from '../../hooks/useArticlesApi';
 import {ArticleItem} from './ArticleItem';
+import {NewsApiArticle, GuardianApiArticle, NytApiArticle, Filters, DateRange, NormalizedArticle} from './types';
 
-export const Articles = () => {
-function classNames(...classes) {
-  return classes.filter(Boolean).join(' ')
-}
-const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
-
-const fetchArticlesFromApi = async (apiKey, endpoint) => {
-        const response = await fetch(`${endpoint}${apiKey}`);
-        const data = await response.json();
-        return data;
- };
-
-const { data: newsApiData, isLoading: isLoadingNewsApi } = useQuery({queryKey: ['newsApiArticles'],
-    queryFn: () => fetchArticlesFromApi(process.env.NEXT_PUBLIC_NEWS_API_KEY, 'https://newsapi.org/v2/everything?q=general&apiKey=')});
-const { data: guardianApiData, isLoading: isLoadingGuardian } = useQuery({queryKey: ['guardianApiArticles'],
-    queryFn: () => fetchArticlesFromApi(process.env.NEXT_PUBLIC_GUARDIAN_API_KEY, 'https://content.guardianapis.com/search?&show-tags=contributor&api-key=')});
-const { data: nytApiData, isLoading: isLoadingNytApi } = useQuery({queryKey: ['nytApiArticles'],
-    queryFn: () => fetchArticlesFromApi(process.env.NEXT_PUBLIC_NYT_API_KEY, 'https://api.nytimes.com/svc/mostpopular/v2/viewed/1.json?api-key=')});
-
-const normalizeArticles = (newsApiData, guardianApiData, nytApiData) => {
-  const normalizedNewsApiData = newsApiData?.map(article => ({
-    author: article.author,
-    content: article.description,
-    date: article.publishedAt,
-    source: article.source.name,
-    title: article.title,
-    url: article.url
-  })) || [];
-
-  const normalizedGuardianData = guardianApiData?.map(article => ({
-    author: article.tags?.map(tag => tag.webTitle).join(', '),
-    category: article.pillarName,
-    date: article.webPublicationDate,
-    title: article.webTitle,
-    source: 'The Guardian',
-    url: article.webUrl,
-  })) || [];
-
-  const normalizedNytData = nytApiData?.map(article => ({
-    author: article.byline.substring(3),
-    category: article.section,
-    content: article.abstract,
-    date: article.published_date,
-    keywords: article.adx_keywords,
-    title: article.title,
-    source: article.source,
-    url: article.url
-  })) || [];
-
-  return [...normalizedNewsApiData, ...normalizedGuardianData, ...normalizedNytData];
-};
-
-const allDataFetched = !isLoadingNewsApi && !isLoadingGuardian && !isLoadingNytApi && newsApiData && guardianApiData && nytApiData;
-
-const normalizedArticles = useMemo(() => {
-    if (allDataFetched) {
-      return normalizeArticles(newsApiData.articles, guardianApiData.response.results, nytApiData.results);
+export const Articles: React.FC = () => {
+    function classNames(...classes) {
+      return classes.filter(Boolean).join(' ')
     }
-    return [];
-  }, [allDataFetched, newsApiData, guardianApiData, nytApiData]);
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+    const { newsApiData, guardianApiData, nytApiData, isLoadingNewsApiData, isLoadingGuardianApiData,
+            isLoadingNytApiData, isErrorNewsApiData, isErrorGuardianApiData, isErrorNytApiData, } = useArticlesApi();
+    const [selectedFilters, setSelectedFilters] = useState<Filters>({
+              author: [],
+              category: [],
+              source: [],
+              date: []
+    });
+
+    const [dateRange, setDateRange] = useState<DateRange>({ startDate: '', endDate: '' });
+    const [searchKeyword, setSearchKeyword] = useState<string>('');
+    const [savePreferences, setSavePreferences] = useState<boolean>(false);
+
+    const normalizeArticles = (newsApiData: NewsApiArticle[], guardianApiData: GuardianApiArticle[], nytApiData: NytApiArticle[]): NormalizedArticle[] => {
+      const normalizedNewsApiData: NormalizedArticle[] = newsApiData?.map(article => ({
+        author: article.author,
+        content: article.description,
+        date: article.publishedAt,
+        source: article.source.name,
+        title: article.title,
+        url: article.url
+      })) || [];
+
+      const normalizedGuardianData: NormalizedArticle[] = guardianApiData?.map(article => ({
+        author: article.tags?.map(tag => tag.webTitle).join(', '),
+        category: article.pillarName,
+        date: article.webPublicationDate,
+        title: article.webTitle,
+        source: 'The Guardian',
+        url: article.webUrl,
+      })) || [];
+
+      const normalizedNytData: NormalizedArticle[] = nytApiData?.map(article => ({
+        author: article.byline.substring(3),
+        category: article.section,
+        content: article.abstract,
+        date: article.published_date,
+        keywords: article.adx_keywords,
+        title: article.title,
+        source: article.source,
+        url: article.url
+      })) || [];
+
+      return [...normalizedNewsApiData, ...normalizedGuardianData, ...normalizedNytData];
+    };
+
+    const allDataFetched = !isLoadingNewsApiData && newsApiData && !isLoadingGuardianApiData && guardianApiData && !isLoadingNytApiData && nytApiData;
+
+    const normalizedArticles = useMemo(() => {
+    if (!allDataFetched) {
+      return [];
+    }
+    return normalizeArticles(newsApiData?.articles, guardianApiData?.response.results, nytApiData?.results);
+    }, [allDataFetched, newsApiData, guardianApiData, nytApiData]);
 
 const filters = useMemo(() => {
     const authorsSet = new Set();
@@ -103,32 +104,25 @@ const filters = useMemo(() => {
     ];
   }, [normalizedArticles]);
 
+const handleFilterChange = (filterType: string, value: string) => {
+  if (!(filterType in selectedFilters)) {
+    console.error(`${filterType} is not a key in Filters`);
+    return;
+  }
+  setSelectedFilters((prevFilters: Filters) => {
+    const currentFilterValues = prevFilters[filterType as keyof Filters] as string[]; // Type assertion
+    const isValueSelected = currentFilterValues.includes(value);
+    const newFilterValues = isValueSelected
+      ? currentFilterValues.filter(v => v !== value) // If it's selected, remove it
+      : [...currentFilterValues, value]; // If it's not selected, add it
 
-   const [selectedFilters, setSelectedFilters] = useState({
-    author: [],
-    category: [],
-    source: [],
-    date: []
-   });
+    return {
+      ...prevFilters,
+      [filterType as keyof Filters]: newFilterValues,
+    };
+  });
+};
 
-  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [savePreferences, setSavePreferences] = useState(false);
-
-  const handleFilterChange = (filterType, value) => {
-    setSelectedFilters(prevFilters => {
-      // Check if the filter for this type already includes this value
-      const isValueSelected = prevFilters[filterType].includes(value);
-      const newFilterValues = isValueSelected
-        ? prevFilters[filterType].filter(v => v !== value) // If it's selected, remove it
-        : [...prevFilters[filterType], value]; // If it's not selected, add it
-
-      return {
-        ...prevFilters,
-        [filterType]: newFilterValues
-      };
-    });
-  };
 
 const filteredArticles = useMemo(() => {
   return normalizedArticles.filter(article => {
@@ -158,7 +152,7 @@ const filteredArticles = useMemo(() => {
     const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
     const articleDate = new Date(article.date);
     // If articleDate is invalid, filter out the article
-    if (isNaN(articleDate)) return false;
+    if (isNaN(articleDate.getTime())) return false;
     // If startDate is set and articleDate is before startDate, filter out the article
     if (startDate && articleDate < startDate) {
       return false;
@@ -174,11 +168,12 @@ const filteredArticles = useMemo(() => {
 
 // Load preferences on mount
 useEffect(() => {
-  const savedFilters = JSON.parse(localStorage.getItem('userPreferences'));
-  if (savedFilters) {
-    setSelectedFilters(savedFilters);
-    setSavePreferences(true);
-  }
+  const savedFiltersString = localStorage.getItem('userPreferences');
+    if (savedFiltersString) {
+      const savedFilters = JSON.parse(savedFiltersString);
+      setSelectedFilters(savedFilters);
+      setSavePreferences(true);
+    }
 }, []);
 
 // Save or clear preferences when the toggle changes
@@ -193,9 +188,7 @@ useEffect(() => {
 const handleToggleChange = (newValue) => {
   setSavePreferences(newValue);
   if (!newValue) {
-    // Clear local storage
     localStorage.removeItem('userPreferences');
-    // Reset filters
     setSelectedFilters({
       author: [],
       category: [],
@@ -203,10 +196,10 @@ const handleToggleChange = (newValue) => {
       date: []
     });
   } else {
-    // Save current filters to local storage
     localStorage.setItem('userPreferences', JSON.stringify(selectedFilters));
   }
 };
+
 
   return (
     <div className="bg-gray-100  flex-grow">
@@ -251,7 +244,7 @@ const handleToggleChange = (newValue) => {
                       {/* Filters */}
                       <form className="mt-4">
                         {filters.map((section) => (
-                          <Disclosure as="div" key={section.name} className="border-t border-gray-200 pb-4 pt-4">
+                          <Disclosure as="div" key={section.id} className="border-t border-gray-200 pb-4 pt-4">
                             {({ open }) => (
                               <fieldset>
                                 <legend className="w-full px-2">
@@ -293,23 +286,22 @@ const handleToggleChange = (newValue) => {
                                </div>
                                  :
                                   <div className="space-y-3 pt-4 max-h-60 overflow-y-auto">
-                                    {section.options.map((option, optionIdx) => (
-                                      <div key={option.value} className="flex items-center">
+                                    {section.options?.map((option, optionIdx) => (
+                                      <div key={option.value?.toString() || `option-${optionIdx}`} className="flex items-center">
                                         <input
                                           id={`${section.id}-${optionIdx}-mobile`}
                                           name={`${section.id}[]`}
-                                          defaultValue={option.value}
-                                          key={option.id}
+                                          key={option.value?.toString() || `option-${optionIdx}`}
                                           checked={selectedFilters[section.id].includes(option.value)}
-                                          onChange={(e) => handleFilterChange(section.id, option.value)}
+                                          onChange={(e) => typeof option.value === 'string' && handleFilterChange(section.id, option.value)}
                                           type="checkbox"
-                                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:outline-none active:outline-none focus:ring-0 active:ring-0"
                                         />
                                         <label
                                           htmlFor={`${section.id}-${optionIdx}-mobile`}
                                           className="ml-3 text-sm text-gray-500"
                                         >
-                                          {option.label}
+                                          {typeof option.label === 'string' ? option.label : 'Default label'}
                                         </label>
                                       </div>
                                     ))}
@@ -376,7 +368,7 @@ const handleToggleChange = (newValue) => {
                   <div className="hidden lg:block">
                     <form className="space-y-10 divide-y divide-gray-200">
                       {filters.map((section, sectionIdx) => (
-                        <div key={section.name} className={sectionIdx === 0 ? null : 'pt-6'}>
+                        <div key={section.id} className={sectionIdx === 0 ? null : 'pt-6'}>
                           <fieldset>
                             {section.id === 'date' ?
                                 <div className="flex flex-col gap-4 mb-4">
@@ -407,20 +399,19 @@ const handleToggleChange = (newValue) => {
                              <legend className="block text-m font-semibold text-gray-900 bg-gray-100">{section.name}</legend>
                               <div className='h-4 bg-gradient-to-b from-gray-100'/>
                              </div>
-                              {section.options.map((option, optionIdx) => (
-                                <div key={option.value} className="flex items-center">
+                              {section.options?.map((option, optionIdx) => (
+                                <div key={option.value?.toString() || `option-${optionIdx}`} className="flex items-center">
                                   <input
                                    id={`${section.id}-${optionIdx}`}
                                    name={`${section.id}[]`}
-                                   defaultValue={option.value}
-                                   key={option.id}
+                                   key={option.value?.toString() || `option-${optionIdx}`}
                                    checked={selectedFilters[section.id].includes(option.value)}
-                                   onChange={(e) => handleFilterChange(section.id, option.value)}
+                                   onChange={(e) => typeof option.value === 'string' && handleFilterChange(section.id, option.value)}
                                    type="checkbox"
-                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:outline-none active:outline-none focus:ring-0 active:ring-0"
                                   />
                                   <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-700">
-                                    {option.label}
+                                    {typeof option.label === 'string' ? option.label : 'Default label'}
                                   </label>
                                 </div>
                               ))}
@@ -453,11 +444,16 @@ const handleToggleChange = (newValue) => {
                                           <span className="sr-only">Save preferences/Remove preferences</span>
                                         </Switch>
                                       </div>
-                <ul role="list" className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-2">
-                    {filteredArticles.map((article) => {
+                {!filteredArticles.length && allDataFetched ?
+                    <div
+                    className="text-lg font-medium text-gray-700 text-center italic"
+                    >There are no articles matching selected criteria</div>
+                :
+                    <ul role="list" className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-2">
+                        {filteredArticles.map((article) => {
                         return <ArticleItem url={article.url} title={article.title} author={article.author} content={article.content} key={article.url}/>
                     })}
-                </ul>
+                    </ul>}
                 </div>
               </div>
             </main>
