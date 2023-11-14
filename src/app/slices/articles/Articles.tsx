@@ -209,7 +209,7 @@ const handleToggleChange = (newValue) => {
 };
 
   return (
-    <div className="bg-gray-100">
+    <div className="bg-gray-100  flex-grow">
           <div>
             <Transition.Root show={mobileFiltersOpen} as={Fragment}>
               <Dialog as="div" className="relative z-40 lg:hidden" onClose={setMobileFiltersOpen}>
@@ -307,7 +307,6 @@ const handleToggleChange = (newValue) => {
                                         />
                                         <label
                                           htmlFor={`${section.id}-${optionIdx}-mobile`}
-                                          for={`${section.id}-${optionIdx}-mobile`}
                                           className="ml-3 text-sm text-gray-500"
                                         >
                                           {option.label}
@@ -348,7 +347,7 @@ const handleToggleChange = (newValue) => {
               </Dialog>
             </Transition.Root>
 
-            <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-6 lg:max-w-7xl lg:px-8">
+            <main className="mx-auto max-w-2xl px-4 py-2 sm:px-6 sm:py-2 lg:max-w-7xl lg:px-8">
               <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:grid-cols-4">
                 <aside className="flex flex-col gap-3">
                   <h2 className="sr-only">Filters</h2>
@@ -420,7 +419,7 @@ const handleToggleChange = (newValue) => {
                                    type="checkbox"
                                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                   />
-                                  <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-700" for={`${section.id}-${optionIdx}`}>
+                                  <label htmlFor={`${section.id}-${optionIdx}`} className="ml-3 text-sm text-gray-700">
                                     {option.label}
                                   </label>
                                 </div>
@@ -455,9 +454,9 @@ const handleToggleChange = (newValue) => {
                                         </Switch>
                                       </div>
                 <ul role="list" className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-2">
-                {filteredArticles.map((article) => {
-                return <ArticleItem url={article.url} title={article.title} author={article.author} content={article.content}/>
-                })}
+                    {filteredArticles.map((article) => {
+                        return <ArticleItem url={article.url} title={article.title} author={article.author} content={article.content} key={article.url}/>
+                    })}
                 </ul>
                 </div>
               </div>
