@@ -18,6 +18,7 @@ const queryClient = new QueryClient();
     <html lang="en">
         <head>
           <title>Innoscripta test case</title>
+          <meta name="description" content="Test case task for frontend developer role" />
         </head>
       <body className={inter.className}>
         <QueryClientProvider client={queryClient}>
